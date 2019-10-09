@@ -2,34 +2,141 @@
 <html lang="en">
 	<head>
 		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<meta http-equiv="X-UA-Compatible" content="ie=edge" />
 		<title>Asteroids</title>
+		<style></style>
 	</head>
 	<body>
 		<canvas id="asteroidsCanvas" width="700" height="500"></canvas>
 		<script>
 			const FPS = 30; //frames per second
 			const shipSize = 30; //ship height in px
+			const rotSpeed = 360 //rotation speed in degrees per second
+			const shipThrst = 5 //exceleration of the ship in px per second per second
+			const fric = 0.7 //friction coeffecient of space where 0 = no firction, 1 = lots of friction
+			const roidsNum = 3 //starting number of asteroids
+			const roidsSpd = 50 //max starting speed of asteroids in px per second
+			const roidsSz = 100 //starting size of asteroids in px
 
 			/** @type {HTMLCanvasElement} */
 			const canv = document.getElementById("asteroidsCanvas");
 			const ctx = canv.getContext("2d");
 
+			//set up ship object
 			const ship = {
 				x: canv.width / 2,
 				y: canv.height / 2,
 				r: shipSize / 2,
-				a: (90 / 180) * Math.PI //convert to radians
+				a: (90 / 180) * Math.PI, //convert to radians
+				rot: 0,
+				thruster: false,
+				thrust: {
+					x: 0,
+					y: 0
+				}
 			};
 
-			//setup game loop
-			setInterval(update, 1000 / FPS);
+			//set up asteroids
+			let roids = [];
 
+		//Functions
+
+			//Asteroid function
+			const newRoid = (x, y) => {
+				const roid = {
+					x: x,
+					y: y,
+					xv: Math.random() * roidsSpd / FPS * (Math.random() < 0.5 ? 1 : -1), //x velocity 
+					yv: Math.random() * roidsSpd / FPS * (Math.random() < 0.5 ? 1 : -1), //y velocity 
+					r: roidsSz / 2,
+					a: Math.random() * Math.PI * 2 //in radians
+				}
+			}
+			const createAsteriodBelt = () => {
+				roids = [];
+				let x, y
+				for(let i = 0; i < roidsNum; i++){
+					x = Math.floor(Math.random * canv.width)
+					y = Math.floor(Math.random * canv.height)
+					roids.push(newRoid(x, y))
+				}
+			}
+
+			//Arrow Keys
+			const keyDown = (/** @type {KeyboardEvent} */ ev) => {
+				switch (ev.keyCode) {
+					case 37: //Left arrow rotates ship left
+						ship.rot = rotSpeed /180 * Math.PI / FPS
+						break;
+					case 38: //Up arrow thrusts ship forward
+						ship.thruster = true
+						break;
+					case 39: //Right arrow rotates ship right
+						ship.rot = -rotSpeed /180 * Math.PI / FPS
+						break;
+					default:
+						break;
+				}
+			}
+
+
+			const keyUp = (/** @type {KeyboardEvent} */ ev) => {
+				switch (ev.keyCode) {
+					case 37: //Left arrow stops rotating ship left
+						ship.rot = 0
+						break;
+					case 38: //Up arrow stop thrusts ship forward
+						ship.thruster = false
+						break;
+					case 39: //Right arrow stops rotating ship right
+						ship.rot = 0
+						break;
+					default:
+						break;
+				}
+			}
 			const update = () => {
 				//draw space
 				ctx.fillStyle = "black";
 				ctx.fillRect(0, 0, canv.width, canv.height);
+
+				//Thrust the ship
+				if(ship.thruster){
+					ship.thrust.x += shipThrst * Math.cos(ship.a) / FPS
+					ship.thrust.y -= shipThrst * Math.sin(ship.a) / FPS
+
+						//draw the thruster
+						ctx.fillStyle = "red"
+						ctx.strokeStyle = "yellow";
+						ctx.lineWidth = shipSize / 10;
+
+						ctx.beginPath();
+						ctx.moveTo(
+							//Rear left 
+							ship.x - ship.r * (2 / 3 * Math.cos(ship.a) + 0.5 *  Math.sin(ship.a)),
+							ship.y + ship.r * (2 / 3 * Math.sin(ship.a) - 0.5 * Math.cos(ship.a))
+						);
+
+						ctx.lineTo(
+							//Rear rear center behind ship
+							ship.x - ship.r * 6 / 3 * Math.cos(ship.a),
+							ship.y + ship.r * 6 / 3 * Math.sin(ship.a) 
+						);
+
+						ctx.lineTo(
+							//Rear right of ship
+							ship.x - ship.r * (2 / 3 * Math.cos(ship.a) - 0.5 * Math.sin(ship.a)),
+							ship.y + ship.r * (2 / 3 * Math.sin(ship.a) + 0.5 * Math.cos(ship.a))
+						);
+						
+						ctx.closePath();
+						ctx.fill();
+						ctx.stroke();
+				}
+				else {
+					ship.thrust.x -= fric * ship.thrust.x / FPS
+					ship.thrust.y -= fric * ship.thrust.y / FPS
+				}
+				
 				//draw a triangular ship
 				ctx.strokeStyle = "white";
 				ctx.lineWidth = shipSize / 20;
@@ -37,21 +144,76 @@
 				ctx.beginPath();
 				ctx.moveTo(
 					//Nose of the ship
-					ship.x + ship.r * Math.cos(ship.a),
-					ship.y - ship.r * Math.sin(ship.a)
+					ship.x + 4 / 3 * ship.r * Math.cos(ship.a),
+					ship.y - 4 / 3 * ship.r * Math.sin(ship.a)
 				);
 
 				ctx.lineTo(
 					//Rear left of ship
-					ship.x - ship.r * (Math.cos(ship.a) + Math.sin(ship.a)),
-					ship.y + ship.r * (Math.sin(ship.a) - Math.cos(ship.a))
+					ship.x - ship.r * (2 / 3 * Math.cos(ship.a) + Math.sin(ship.a)),
+					ship.y + ship.r * (2 / 3 * Math.sin(ship.a) - Math.cos(ship.a))
 				);
 
+                ctx.lineTo(
+					//Rear right of ship
+					ship.x - ship.r * (2 / 3 * Math.cos(ship.a) - Math.sin(ship.a)),
+					ship.y + ship.r * (2 / 3 * Math.sin(ship.a) + Math.cos(ship.a))
+                );
+                
+                ctx.closePath();
 				ctx.stroke();
+
+				//draw the asteroids
+				ctx.strokeStyle = "slategray";
+				ctx.lineWidth = shipSize / 20; 
+				for(let i = 0; i < roids.length; i++){
+					//draw a path
+
+					//draw a polygon
+
+					//move the asteroid
+
+					//handle edge of screen
+				}
+
 				//rotate ship
+				ship.a += ship.rot
 
 				//move ship
+				ship.x += ship.thrust.x
+				ship.y += ship.thrust.y
+
+				//handle edge of screen for x component
+				if(ship.x < 0 - ship.r){
+					ship.x  = canv.width + ship.r 
+				}
+				else if(ship.x > canv.width + ship.r) {
+					ship.x = 0 - ship.r 
+				}
+
+				//handle edge of screen for y component
+				if(ship.y < 0 - ship.r){
+					ship.y  = canv.height + ship.r 
+				}
+				else if(ship.y > canv.height + ship.r) {
+					ship.y = 0 - ship.r 
+				}
+
+				//center dot
+				ctx.fillStyle = "red"
+				ctx.fillRect(ship.x - 1, ship.y -1, 2, 2)
 			};
+			
+			//setup game loop
+			setInterval(update, 1000 / FPS);
+			
+			//Setting event handlers
+			document.addEventListener("keydown", keyDown)
+			document.addEventListener("keyup", keyUp)
+
+			//Asteroid
+			createAsteriodBelt();
+
 		</script>
 	</body>
 </html>
